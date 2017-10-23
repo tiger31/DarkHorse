@@ -12,7 +12,7 @@ object Arguments {
     var url: String = ""
 
     @Option(name = "-p", usage = "Specify server port")
-    var port: Short = -1
+    var port: Int = -1
 
     fun use(args: Array<String>): Arguments =
             CmdLineParser(this).parseArgument(*args).let{ this }

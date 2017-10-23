@@ -5,7 +5,7 @@ import java.io.InputStreamReader
 import java.io.PrintWriter
 import java.net.Socket
 
-class ServerConnection(val url: String, val port: Short) {
+class ServerConnection(val url: String, val port: Int) {
 
     // Для связи с сервером для начала нужно создать сокет
     private val socket = Socket(url, port.toInt())
