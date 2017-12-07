@@ -1,13 +1,36 @@
 package ru.spbstu.competition.game
 
-import Graph.Vertex
+import Graph.*
 import ru.spbstu.competition.protocol.Protocol
+import ru.spbstu.competition.protocol.data.River
+import java.util.*
 
 class Intellect(val state: State, val protocol: Protocol) {
     var i = 0
+    val depth = 0
+    var currentLambda = 0
+    var firstStepComplete = false
+
+
     fun makeMove() {
         //mines = лямбды
         //poitsees = вершины
+        val graph = state.Graph
+
+        if (state.firstToClaim.isNotEmpty()) {
+            for (i in 0..state.mines.size) {
+                val mine = (currentLambda + i) % state.mines.size
+                val edge = state.firstToClaim[mine].find { state.rivers[it.river] == RiverState.Neutral }
+                if (edge == null) {
+                    state.firstToClaim[mine].clear()
+                    continue
+                } else {
+                    currentLambda = (mine + 1) % state.mines.size
+                    return protocol.claimMove(edge.river.source, edge.river.target)
+                }
+            }
+            state.firstToClaim.clear()
+        }
 
         if (i < state.moves.size) {
             var source = state.moves[i].start

@@ -1,5 +1,6 @@
 package ru.spbstu.competition
 
+import Graph.*
 import org.kohsuke.args4j.CmdLineParser
 import org.kohsuke.args4j.Option
 import ru.spbstu.competition.game.Intellect
@@ -13,37 +14,49 @@ object Arguments {
     var url: String = "91.151.191.57"
 
     @Option(name = "-p", usage = "Specify server port")
-    var port: Int = 50006
+    var port: Int = 50008
 
     fun use(args: Array<String>): Arguments =
             CmdLineParser(this).parseArgument(*args).let{ this }
 }
+interface GraphAnalyser {
+    fun gg(): Graph<Int>
+    fun matrix(mines: List<Int>): Array<Array<List<Edge<Int>>>>
+    fun printMatrix(mines: List<Int>): Unit
 
+}
 fun main(args: Array<String>) {
-    val thread = Thread(Runnable {
-        val arr = arrayOf(
-            "So you wanna play with magic",
-            "Boy, you should know what you're falling for",
-            "Baby do you dare to do this?",
-            "Cause I’m coming at you like a dark horse",
-            "Are you ready for, ready for",
-            "A perfect storm, perfect storm",
-            "Cause once you’re mine, once you’re mine",
-            "There’s no going back"
-        )
-        for (i in 0..arr.size - 1) {
-            println(arr[i])
-            Thread.sleep(1000)
+    val thread = object : GraphAnalyser, Thread() {
+        val graph = Graph<Int>()
+        override fun run() {
+            print("2nd thread started")
         }
-    })
+        override fun gg(): Graph<Int> = graph //Get Graph or Good Game; have fun :3
+        override fun matrix(mines: List<Int>): Array<Array<List<Edge<Int>>>> {
+            //Двумерный масив путей. Матрица путей лямбд
+            val arr = Array(mines.size, {_ -> Array(mines.size, { _ -> listOf<Edge<Int>>()})})
+            for (i in 0..mines.size - 2) {
+                for (j in (i + 1)..mines.size - 1) {
+                    if (arr[i][j].isEmpty()) {
+                        val path = graph.aStar(graph[mines[i]], graph[mines[j]]) ?: listOf()
+                        arr[i][j] = path
+                        arr[j][i] = path.reversed()
+                    }
+                }
+            }
+            return arr
+        }
+        override fun printMatrix(mines: List<Int>) {
+            val matrix = matrix(mines)
+            matrix.forEach { it.forEach { print("${it.size}  ") }; println() }
+        }
+    }
     thread.start()
     Arguments.use(args)
     //Baby do you dare to do this?
     // Протокол обмена с сервером
     val protocol = Protocol(Arguments.url, Arguments.port)
-    // Состояние игрового поля
-    val gameState = State()
-    // Джо очень умный чувак, вот его ум
+    val gameState = State(thread, thread.gg())
     val intellect = Intellect(gameState, protocol)
 
     protocol.handShake("DarkHorse")

@@ -67,7 +67,7 @@ public class Graph<T> {
     @Nullable
     public List<Edge<T>> aStar(Vertex<T> from, Vertex<T> to) {
         clear();
-        PriorityQueue<Vertex> queue = new PriorityQueue<>(10,
+        PriorityQueue<Vertex<T>> queue = new PriorityQueue<>(10,
                 (o1, o2) -> {
                     double d1 = o1.position.distance(to.position);
                     double d2 = o2.position.distance(to.position);
