@@ -7,14 +7,13 @@ import ru.spbstu.competition.game.Intellect
 import ru.spbstu.competition.game.State
 import ru.spbstu.competition.protocol.Protocol
 import ru.spbstu.competition.protocol.data.*
-import java.lang.UnsupportedOperationException
 
 object Arguments {
     @Option(name = "-u", usage = "Specify server url")
     var url: String = "91.151.191.57"
 
     @Option(name = "-p", usage = "Specify server port")
-    var port: Int = 50008
+    var port: Int = 50010
 
     fun use(args: Array<String>): Arguments =
             CmdLineParser(this).parseArgument(*args).let{ this }
@@ -38,7 +37,7 @@ fun main(args: Array<String>) {
             for (i in 0..mines.size - 2) {
                 for (j in (i + 1)..mines.size - 1) {
                     if (arr[i][j].isEmpty()) {
-                        val path = graph.aStar(graph[mines[i]], graph[mines[j]]) ?: listOf()
+                        val path = graph.bidirectionalSearch(graph[mines[i]], graph[mines[j]]) ?: listOf()
                         arr[i][j] = path
                         arr[j][i] = path.reversed()
                     }

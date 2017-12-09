@@ -2,8 +2,7 @@ package ru.spbstu.competition.game
 
 import Graph.*
 import ru.spbstu.competition.protocol.Protocol
-import ru.spbstu.competition.protocol.data.River
-import java.util.*
+
 
 class Intellect(val state: State, val protocol: Protocol) {
     var i = 0
@@ -32,6 +31,7 @@ class Intellect(val state: State, val protocol: Protocol) {
             state.firstToClaim.clear()
         }
 
+        /*
         if (i < state.moves.size) {
             var source = state.moves[i].start
             var target = state.moves[i].end
@@ -49,6 +49,7 @@ class Intellect(val state: State, val protocol: Protocol) {
             }
             return protocol.claimMove(source.value, target.value)
         }
+        */
 
         // If there is a free river near a mine, take it!
         val try0 = state.rivers.entries.find { (river, riverState) ->

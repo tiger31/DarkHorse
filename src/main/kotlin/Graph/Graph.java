@@ -1,11 +1,14 @@
 package Graph;
 
 import org.jetbrains.annotations.Nullable;
+import ru.spbstu.competition.game.RiverState;
+import ru.spbstu.competition.protocol.data.River;
 
 import java.util.*;
 
 public class Graph<T> {
     public Map<T, Vertex<T>> vertexes = new HashMap<>();
+    public Map<River, RiverState> riverStateMap;
 
     public void addVertex(Vertex<T> vertex) {
         vertexes.put(vertex.value, vertex);
@@ -67,12 +70,7 @@ public class Graph<T> {
     @Nullable
     public List<Edge<T>> aStar(Vertex<T> from, Vertex<T> to) {
         clear();
-        PriorityQueue<Vertex<T>> queue = new PriorityQueue<>(10,
-                (o1, o2) -> {
-                    double d1 = o1.position.distance(to.position);
-                    double d2 = o2.position.distance(to.position);
-                    return (d1 < d2) ? -1 : (d1 > d2) ? 1 : 0;
-                });
+        PriorityQueue<Vertex<T>> queue = new PriorityQueue<>(10, getComparator(to));
         queue.offer(from);
         while(!queue.isEmpty()) {
             Vertex<T> current = queue.poll();
@@ -87,6 +85,82 @@ public class Graph<T> {
                         link.end.prev = current;
                 });
                 current.visited = true;
+            }
+        }
+        return null;
+    }
+
+    private Comparator<Vertex<T>> getComparator(Vertex<T> to) {
+        return (o1, o2) -> {
+            double d1 = o1.position.distance(to.position);
+            double d2 = o2.position.distance(to.position);
+            return (d1 < d2) ? -1 : (d1 > d2) ? 1 : 0;
+        };
+    }
+
+    @Nullable
+    public List<Edge<T>> bidirectionalSearch(Vertex<T> from, Vertex<T> to) {
+        PriorityQueue<Vertex<T>> firstDirQueue = new PriorityQueue<Vertex<T>>(10, getComparator(to));
+        PriorityQueue<Vertex<T>> secondDirQueue = new PriorityQueue<Vertex<T>>(10, getComparator(from));
+
+        List<Vertex<T>> firstDirVisited = new ArrayList<Vertex<T>>();
+        List<Vertex<T>> secondDirVisited = new ArrayList<Vertex<T>>();
+
+        firstDirQueue.offer(from);
+        secondDirQueue.offer(to);
+
+        while (!firstDirQueue.isEmpty() && !secondDirQueue.isEmpty()) {
+            //В первом направлении
+            Vertex<T> first = firstDirQueue.poll();
+            if (!firstDirVisited.contains(first)) {
+                if (first == to) {
+                    return first.getEdgePath();
+                }
+                for (Edge<T> link : first.links) {
+                    if (secondDirVisited.contains(link.end)) {
+                        List<Edge<T>> path = new ArrayList<Edge<T>>();
+                        path.addAll(first.getEdgePath());
+                        List<Edge<T>> part = link.end.getEdgePath();
+                        Collections.reverse(part);
+                        path.addAll(part);
+                        return path;
+                    } else {
+                        if (riverStateMap.get(link.river) != RiverState.Enemy) {
+                            firstDirQueue.offer(link.end);
+                            link.end.distance = first.distance + link.value;
+                            if (!link.end.visited)
+                                link.end.prev = first;
+                        }
+                    }
+                }
+                firstDirVisited.add(first);
+                first.visited = true;
+            }
+
+            Vertex<T> second = secondDirQueue.poll();
+            if (!secondDirVisited.contains(second)) {
+                if (second == from) {
+                    return second.getEdgePath();
+                }
+                for (Edge<T> link : second.links) {
+                    if (firstDirVisited.contains(link.end)) {
+                        List<Edge<T>> path = new ArrayList<Edge<T>>();
+                        path.addAll(link.end.getEdgePath());
+                        List<Edge<T>> part = second.getEdgePath();
+                        Collections.reverse(part);
+                        path.addAll(part);
+                        return path;
+                    } else {
+                        if (riverStateMap.get(link.river) != RiverState.Enemy) {
+                            secondDirQueue.offer(link.end);
+                            link.end.distance = second.distance + link.value;
+                            if (!link.end.visited)
+                                link.end.prev = second;
+                        }
+                    }
+                }
+                secondDirVisited.add(second);
+                second.visited = true;
             }
         }
         return null;

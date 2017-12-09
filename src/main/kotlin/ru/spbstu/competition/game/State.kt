@@ -44,8 +44,10 @@ class State(val thread: GraphAnalyser, val Graph: Graph<Int>) {
             }
             list.add(subList)
         }
+        thread.gg().riverStateMap = rivers
         firstToClaim = list
         matrix = thread.matrix(mines)
+        thread.printMatrix(mines)
     }
 
     fun update(claim: Claim) {
