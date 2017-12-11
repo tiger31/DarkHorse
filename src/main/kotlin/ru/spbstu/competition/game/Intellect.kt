@@ -1,15 +1,27 @@
 package ru.spbstu.competition.game
 
-import Graph.*
 import ru.spbstu.competition.protocol.Protocol
 
 
 class Intellect(val state: State, val protocol: Protocol) {
-    var currentLambda = 0
+    val pathList: MutableList<Path> = mutableListOf()
     val graph = state.Graph
+    var currentLambda = 0
     var swap = false
-    fun makeMove() {
+    var pathNeedsRecount = false
 
+    init {
+        for (i in 0..state.mines.size - 2)
+            for (j in i..state.mines.size - 1)
+                pathList.add(Path(state.matrix[i][j], graph, state.mines[i], state.mines[j]))
+        pathList.sortBy { it.path.size }
+    }
+
+    fun makeMove() {
+        if (pathNeedsRecount) {
+            pathListRecount()
+            pathNeedsRecount = false
+        }
 
         if (state.firstToClaim.isNotEmpty()) {
             for (i in 0..state.mines.size) {
@@ -26,34 +38,29 @@ class Intellect(val state: State, val protocol: Protocol) {
             }
             state.firstToClaim.clear()
         }
-        if (!pathMatrixEmpty()) {
-            for (i in 0..state.mines.size - 1)
-                for (j in 0..state.mines.size - 1) {
-                    //Получаем путь из матрицы
-                    var path = state.matrix[i][j]
-                    //Если он не пройден или существует
-                    if (path.isNotEmpty()) {
-                        //Если на пути есть хотя бы одна из клеток противника - перестраиваем путь
-                        if (!pathClear(path))
-                            rebuildPathBetween(state.mines[i], state.mines[j])
-                        //Снова получаем уже измененный путь
-                        path = state.matrix[i][j]
-                        //Если он пустой, значит одна из лямбд больше не достижима
+
+        if (pathList.isNotEmpty()) {
+            pathList.forEach {
+                if (it.path.isNotEmpty() && !it.complete && !it.unreachable) {
+                    if (!it.isClear())
+                        it.recount()
+                    if (it.path.isNotEmpty()) {
+                        val path = it.filterNeutral()
                         if (path.isNotEmpty()) {
-                            //Очищаем маршрут от уже наших рек
-                            path = pathNeutral(path)
-                            //Если он пустой - значит весь путь был захвачен - пора переходить к другим лямбдам
-                            if (path.isNotEmpty()) {
-                                val index = if (swap) path.size - 1 else 0
-                                swap = !swap
-                                return protocol.claimMove(path[index].river.source, path[index].river.target)
-                            } else {
-                                //Если пустой - обнулили, чтобы больше не возвращаться
-                                state.matrix[i][j] = listOf()
-                            }
+                            if (path.size == 1) pathNeedsRecount = true
+                            val index = if (swap) path.size - 1 else 0
+                            swap = !swap
+                            return protocol.claimMove(path[index].river.source, path[index].river.target)
+                        } else {
+                            it.complete = true
                         }
+                    } else {
+                        it.unreachable = true
                     }
+                } else {
+                    it.unreachable = true
                 }
+            }
         }
 
 
@@ -77,13 +84,13 @@ class Intellect(val state: State, val protocol: Protocol) {
         val try1 = state.rivers.entries.find { (river, riverState) ->
             riverState == RiverState.Neutral && (river.source in ourSites && river.target in ourSites)
         }
-        if(try1 != null) return protocol.claimMove(try1.key.source, try1.key.target)
+        if (try1 != null) return protocol.claimMove(try1.key.source, try1.key.target)
 
         // If there is a river near our pointsee, take it!
         val try2 = state.rivers.entries.find { (river, riverState) ->
             riverState == RiverState.Neutral && (river.source in ourSites || river.target in ourSites)
         }
-        if(try2 != null) return protocol.claimMove(try2.key.source, try2.key.target)
+        if (try2 != null) return protocol.claimMove(try2.key.source, try2.key.target)
 
         // If there is a river between two their pointsees, take it!
         val try4 = state.rivers.entries.find { (river, riverState) ->
@@ -108,16 +115,11 @@ class Intellect(val state: State, val protocol: Protocol) {
         // (╯°□°)╯ ┻━┻
         protocol.passMove()
     }
-    fun pathClear(path: List<Edge<Int>> ): Boolean = path.count { graph.riverStateMap[it.river] == RiverState.Enemy } == 0
-    fun pathNeutral(path: List<Edge<Int>>): List<Edge<Int>> = path
-            .filter { graph.riverStateMap[it.river] == RiverState.Neutral }
-            .toMutableList()
-    fun rebuildPathBetween(mine1: Int, mine2: Int): Unit {
-        val mine1Index = state.mines.indexOf(mine1)
-        val mine2Index = state.mines.indexOf(mine2)
-        val path = graph.bidirectionalSearch(graph[mine1], graph[mine2]) ?: listOf()
-        state.matrix[mine1Index][mine2Index] = path
-        state.matrix[mine2Index][mine1Index] = path.reversed()
+
+    fun pathListRecount() {
+        pathList.removeIf { it.complete || it.unreachable }
+        pathList.forEach { it.recount() }
+        pathList.sortBy { it.path.size }
     }
-    fun pathMatrixEmpty(): Boolean = state.matrix.sumBy { it.sumBy { it.size } } == 0
+
 }
