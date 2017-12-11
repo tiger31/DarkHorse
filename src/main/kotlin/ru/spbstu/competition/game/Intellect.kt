@@ -9,16 +9,16 @@ class Intellect(val state: State, val protocol: Protocol) {
     val depth = 0
     var currentLambda = 0
     var firstStepComplete = false
-
+    val graph = state.Graph
 
     fun makeMove() {
         //mines = лямбды
         //poitsees = вершины
-        val graph = state.Graph
 
         if (state.firstToClaim.isNotEmpty()) {
             for (i in 0..state.mines.size) {
                 val mine = (currentLambda + i) % state.mines.size
+                if (state.firstToClaim[mine].isEmpty()) continue
                 val edge = state.firstToClaim[mine].find { state.rivers[it.river] == RiverState.Neutral }
                 if (edge == null) {
                     state.firstToClaim[mine].clear()
@@ -31,25 +31,35 @@ class Intellect(val state: State, val protocol: Protocol) {
             state.firstToClaim.clear()
         }
 
-        /*
-        if (i < state.moves.size) {
-            var source = state.moves[i].start
-            var target = state.moves[i].end
-            var river = state.moves[i].river
-            if (state.rivers[river] == RiverState.Enemy) {
-                state.moves = state.Graph.aStar(state.currentTarget, source)!!
-                        .filter { state.rivers[it.river] != RiverState.Our }
-                if (state.moves.isNotEmpty()) {
-                    source = state.moves[0].start
-                    target = state.moves[0].end
+        if (!pathMatrixEmpty()) {
+            for (i in 0..state.mines.size - 1)
+                for (j in 0..state.mines.size - 1) {
+                    //Получаем путь из матрицы
+                    var path = state.matrix[i][j]
+                    //Если он не пройден или существует
+                    if (path.isNotEmpty()) {
+                        //Если на пути есть хотя бы одна из клеток противника - перестраиваем путь
+                        if (!pathClear(path))
+                            rebuildPathBetween(state.mines[i], state.mines[j])
+                        //Снова получаем уже измененный путь
+                        path = state.matrix[i][j]
+                        //Если он пустой, значит одна из лямбд больше не достижима
+                        if (path.isNotEmpty()) {
+                            //Очищаем маршрут от уже наших рек
+                            path = pathNeutral(path)
+                            //Если он пустой - значит весь путь был захвачен - пора переходить к другим лямбдам
+                            if (path.isNotEmpty()) {
+                                protocol.claimMove(path[0].river.source, path[0].river.target)
+                            } else {
+                                //Если пустой - обнулили, чтобы больше не возвращаться
+                                state.matrix[i][j] = listOf()
+                            }
+                        }
+                    }
                 }
-                i = 0
-            } else {
-                i++
-            }
-            return protocol.claimMove(source.value, target.value)
+
         }
-        */
+
 
         // If there is a free river near a mine, take it!
         val try0 = state.rivers.entries.find { (river, riverState) ->
@@ -106,5 +116,16 @@ class Intellect(val state: State, val protocol: Protocol) {
         // (╯°□°)╯ ┻━┻
         protocol.passMove()
     }
-
+    fun pathClear(path: List<Edge<Int>> ): Boolean = path.count { graph.riverStateMap[it.river] == RiverState.Enemy } == 0
+    fun pathNeutral(path: List<Edge<Int>>): List<Edge<Int>> = path
+            .filter { graph.riverStateMap[it.river] == RiverState.Neutral }
+            .toMutableList()
+    fun rebuildPathBetween(mine1: Int, mine2: Int): Unit {
+        val mine1Index = state.mines.indexOf(mine1)
+        val mine2Index = state.mines.indexOf(mine2)
+        val path = graph.bidirectionalSearch(graph[mine1], graph[mine2]) ?: listOf()
+        state.matrix[mine1Index][mine2Index] = path
+        state.matrix[mine2Index][mine1Index] = path.reversed()
+    }
+    fun pathMatrixEmpty(): Boolean = state.matrix.sumBy { it.sumBy { it.size } } == 0
 }

@@ -100,6 +100,7 @@ public class Graph<T> {
 
     @Nullable
     public List<Edge<T>> bidirectionalSearch(Vertex<T> from, Vertex<T> to) {
+        clear();
         PriorityQueue<Vertex<T>> firstDirQueue = new PriorityQueue<Vertex<T>>(10, getComparator(to));
         PriorityQueue<Vertex<T>> secondDirQueue = new PriorityQueue<Vertex<T>>(10, getComparator(from));
 
@@ -117,9 +118,10 @@ public class Graph<T> {
                     return first.getEdgePath();
                 }
                 for (Edge<T> link : first.links) {
-                    if (secondDirVisited.contains(link.end)) {
+                    if (secondDirVisited.contains(link.end) || secondDirQueue.contains(link.end)) {
                         List<Edge<T>> path = new ArrayList<Edge<T>>();
                         path.addAll(first.getEdgePath());
+                        path.add(link);
                         List<Edge<T>> part = link.end.getEdgePath();
                         Collections.reverse(part);
                         path.addAll(part);
@@ -143,10 +145,11 @@ public class Graph<T> {
                     return second.getEdgePath();
                 }
                 for (Edge<T> link : second.links) {
-                    if (firstDirVisited.contains(link.end)) {
+                    if (firstDirVisited.contains(link.end) || firstDirQueue.contains(link.end)) {
                         List<Edge<T>> path = new ArrayList<Edge<T>>();
                         path.addAll(link.end.getEdgePath());
                         List<Edge<T>> part = second.getEdgePath();
+                        part.add(link);
                         Collections.reverse(part);
                         path.addAll(part);
                         return path;
