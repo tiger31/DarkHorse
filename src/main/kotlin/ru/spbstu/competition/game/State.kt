@@ -39,9 +39,6 @@ class State(val thread: GraphAnalyser, val Graph: Graph<Int>) {
             val curr = Graph[mine]
             val subList = mutableListOf<Edge<Int>>()
             subList.addAll(curr.links)
-            for (link in curr.links) {
-                subList.addAll(link.end.links)
-            }
             list.add(subList)
         }
         thread.gg().riverStateMap = rivers

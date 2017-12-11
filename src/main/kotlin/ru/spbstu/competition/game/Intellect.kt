@@ -5,15 +5,11 @@ import ru.spbstu.competition.protocol.Protocol
 
 
 class Intellect(val state: State, val protocol: Protocol) {
-    var i = 0
-    val depth = 0
     var currentLambda = 0
-    var firstStepComplete = false
     val graph = state.Graph
-
+    var swap = false
     fun makeMove() {
-        //mines = лямбды
-        //poitsees = вершины
+
 
         if (state.firstToClaim.isNotEmpty()) {
             for (i in 0..state.mines.size) {
@@ -30,7 +26,6 @@ class Intellect(val state: State, val protocol: Protocol) {
             }
             state.firstToClaim.clear()
         }
-
         if (!pathMatrixEmpty()) {
             for (i in 0..state.mines.size - 1)
                 for (j in 0..state.mines.size - 1) {
@@ -49,7 +44,9 @@ class Intellect(val state: State, val protocol: Protocol) {
                             path = pathNeutral(path)
                             //Если он пустой - значит весь путь был захвачен - пора переходить к другим лямбдам
                             if (path.isNotEmpty()) {
-                                protocol.claimMove(path[0].river.source, path[0].river.target)
+                                val index = if (swap) path.size - 1 else 0
+                                swap = !swap
+                                return protocol.claimMove(path[index].river.source, path[index].river.target)
                             } else {
                                 //Если пустой - обнулили, чтобы больше не возвращаться
                                 state.matrix[i][j] = listOf()
@@ -57,15 +54,10 @@ class Intellect(val state: State, val protocol: Protocol) {
                         }
                     }
                 }
-
         }
 
 
         // If there is a free river near a mine, take it!
-        val try0 = state.rivers.entries.find { (river, riverState) ->
-            riverState == RiverState.Neutral && (river.source in state.mines || river.target in state.mines)
-        }
-        if(try0 != null) return protocol.claimMove(try0.key.source, try0.key.target)
 
         // Look at all our pointsees
         val ourSites = state
