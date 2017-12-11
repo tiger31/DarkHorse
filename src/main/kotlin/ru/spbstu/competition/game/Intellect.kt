@@ -10,11 +10,12 @@ class Intellect(val state: State, val protocol: Protocol) {
     var swap = false
     var pathNeedsRecount = false
 
-    init {
+    fun init() {
         for (i in 0..state.mines.size - 2)
-            for (j in i..state.mines.size - 1)
+            for (j in i..state.mines.size - 1) {
                 pathList.add(Path(state.matrix[i][j], graph, state.mines[i], state.mines[j]))
-        pathList.sortBy { it.path.size }
+            }
+        pathList.sortByDescending { it.path.size }
     }
 
     fun makeMove() {
@@ -61,6 +62,7 @@ class Intellect(val state: State, val protocol: Protocol) {
                     it.unreachable = true
                 }
             }
+            pathListRecount()
         }
 
 
@@ -119,7 +121,7 @@ class Intellect(val state: State, val protocol: Protocol) {
     fun pathListRecount() {
         pathList.removeIf { it.complete || it.unreachable }
         pathList.forEach { it.recount() }
-        pathList.sortBy { it.path.size }
+        pathList.sortByDescending { it.path.size }
     }
 
 }

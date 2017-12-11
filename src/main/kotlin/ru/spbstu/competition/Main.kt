@@ -13,7 +13,7 @@ object Arguments {
     var url: String = "91.151.191.57"
 
     @Option(name = "-p", usage = "Specify server port")
-    var port: Int = 50003
+    var port: Int = 50005
 
     fun use(args: Array<String>): Arguments =
             CmdLineParser(this).parseArgument(*args).let{ this }
@@ -58,10 +58,11 @@ fun main(args: Array<String>) {
     val gameState = State(thread, thread.gg())
     val intellect = Intellect(gameState, protocol)
 
+
     protocol.handShake("DarkHorse")
     val setupData = protocol.setup()
     gameState.init(setupData)
-
+    intellect.init()
     println("Received id = ${setupData.punter}")
 
     protocol.ready()
