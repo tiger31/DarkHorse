@@ -13,7 +13,7 @@ object Arguments {
     var url: String = "91.151.191.57"
 
     @Option(name = "-p", usage = "Specify server port")
-    var port: Int = 50005
+    var port: Int = 50004
 
     fun use(args: Array<String>): Arguments =
             CmdLineParser(this).parseArgument(*args).let{ this }
@@ -21,7 +21,7 @@ object Arguments {
 interface GraphAnalyser {
     fun gg(): Graph<Int>
     fun matrix(mines: List<Int>): Array<Array<List<Edge<Int>>>>
-    fun printMatrix(mines: List<Int>): Unit
+    fun printMatrix(matrix: Array<Array<List<Edge<Int>>>>): Unit
 
 }
 fun main(args: Array<String>) {
@@ -45,10 +45,10 @@ fun main(args: Array<String>) {
             }
             return arr
         }
-        override fun printMatrix(mines: List<Int>) {
-            val matrix = matrix(mines)
-            matrix.forEach { it.forEach { print("${it.size}  ") }; println() }
-        }
+
+
+        override fun printMatrix(matrix: Array<Array<List<Edge<Int>>>>) : Unit = matrix.forEach { it.forEach { print("%4d".format(it.size)) }; println() }
+
     }
     thread.start()
     Arguments.use(args)

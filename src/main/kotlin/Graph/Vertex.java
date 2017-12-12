@@ -79,6 +79,7 @@ public class Vertex<T> {
                 }
             }
         }
+        Collections.reverse(path);
         return path;
     }
 }

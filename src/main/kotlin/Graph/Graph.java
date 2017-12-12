@@ -5,6 +5,7 @@ import ru.spbstu.competition.game.RiverState;
 import ru.spbstu.competition.protocol.data.River;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class Graph<T> {
     public Map<T, Vertex<T>> vertexes = new HashMap<>();
