@@ -2,6 +2,8 @@ package ru.spbstu.competition.game
 
 import ru.spbstu.competition.protocol.Protocol
 import Graph.*
+import com.sun.jmx.remote.internal.ArrayQueue
+import java.util.*
 
 class Intellect(val state: State, val protocol: Protocol) {
     val pathList: MutableList<Path> = mutableListOf()
@@ -169,11 +171,10 @@ class Intellect(val state: State, val protocol: Protocol) {
     }
 
     fun findNext(i: Int): Edge<Int>? {
-        //TODO коррекция при старте из новой лямбды
         do {
             lastStepLambdaIndex = i
             lastStepLambda = graph[pathDistance[i].first]
-            val vertex = if (lastStepCurrent != null) lastStepCurrent!! else lastStepLambda!!
+            val vertex = (if (lastStepCurrent != null) lastStepCurrent!! else choseVertexAroundLambda(lastStepLambda!!)) ?: break
             val neighbours = vertex.links.filter { state.rivers[it.river] == RiverState.Neutral }
                     .map { Pair(moveToVertexValue(it.end), it) }
                     .filter { it.first > 0 }
@@ -201,10 +202,28 @@ class Intellect(val state: State, val protocol: Protocol) {
         }
     }
 
-    fun moveToVertexValue(vertex: Vertex<Int>): Double =
-            necessaryVertexCondition(vertex) * (pathDistance[lastStepLambdaIndex].second[vertex] ?: 0)
+    fun choseVertexAroundLambda(vertex: Vertex<Int>): Vertex<Int>? {
+        val queue = ArrayDeque<Vertex<Int>>(10)
+        val visited = mutableListOf<Vertex<Int>>()
+        queue.add(vertex)
+        while (queue.isNotEmpty()) {
+            val vertex1 = queue.poll()
+            if (!visited.contains(vertex1)) {
+                if ((vertex1.links.filter{ state.rivers[it.river] == RiverState.Neutral }
+                        .map { moveToVertexValue(it.end) }
+                        .maxBy { it }?: 0.0) > 0) return vertex1
+                val next = vertex1.links.filter { state.rivers[it.river] == RiverState.Our }.map { it.end }
+                queue.addAll(next)
+                visited.add(vertex1)
+            }
+        }
+        return null
+    }
 
-    fun necessaryVertexCondition(vertex: Vertex<Int>): Double =
-            if (vertex.links.count { state.rivers[it.river] == RiverState.Our } != 0) 0.0
+    fun moveToVertexValue(vertex: Vertex<Int>, forbidOurs: Boolean = true): Double =
+            necessaryVertexCondition(vertex, forbidOurs) * (pathDistance[lastStepLambdaIndex].second[vertex] ?: 0)
+
+    fun necessaryVertexCondition(vertex: Vertex<Int>, forbidOurs: Boolean = true): Double =
+            if (vertex.links.count { state.rivers[it.river] == RiverState.Our } != 0 && forbidOurs) 0.0
             else if (vertex.links.count { state.rivers[it.river] == RiverState.Neutral } > 0) 1.0 else 0.0
 }
