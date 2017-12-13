@@ -60,10 +60,7 @@ class Intellect(val state: State, val protocol: Protocol) {
         state.mines.forEach { pathDistance.add(Pair(it, graph.waveSearch(graph[it]))) }
         pathDistance.sortByDescending { it.second.values.max() }
         fullDisconnectedGraph = (state.matrix.sumBy { it.sumBy { it.size } } == 0)
-        dynamicPath.addAll(dynamicPathStart(secondList))
-        dynamicPath.forEach {
-            println("${it.from} -> ${it.to}")
-        }
+        dynamicPath.addAll(dynamicPathStart(secondList).takeLast(state.mines.size - 1))
     }
 
     fun makeMove() {
@@ -256,7 +253,6 @@ class Intellect(val state: State, val protocol: Protocol) {
         var bestCost = Int.MAX_VALUE
         for (item in available) {
             val newPath = dynamicPath(path + item, items.filter { it.to != item.to })
-
             if (pathCost(newPath) < bestCost) {
                 bestPath = newPath
                 bestCost = pathCost(newPath)
