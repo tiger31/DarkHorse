@@ -15,6 +15,8 @@ class Intellect(val state: State, val protocol: Protocol) {
     var pathNeedsRecount = false
     val states = Array(4, { _ -> false })
 
+    val dynamicPath = mutableListOf<Path>()
+
     var fullDisconnectedGraph = false
 
     var lastStepLambda: Vertex<Int>? = null
@@ -48,11 +50,20 @@ class Intellect(val state: State, val protocol: Protocol) {
             for (j in i..state.mines.size - 1) {
                 pathList.add(Path(state.matrix[i][j], graph, state.mines[i], state.mines[j]))
             }
+        val secondList = mutableListOf<Path>()
+        for (i in 0..state.mines.size - 1)
+            for (j in 0..state.mines.size - 1) {
+                secondList.add(Path(state.matrix[i][j], graph, state.mines[i], state.mines[j]))
+            }
         lambdaClosest = Array(state.mines.size, {_ -> 0})
         pathList.sortByDescending { it.filterNeutral().size }
         state.mines.forEach { pathDistance.add(Pair(it, graph.waveSearch(graph[it]))) }
         pathDistance.sortByDescending { it.second.values.max() }
         fullDisconnectedGraph = (state.matrix.sumBy { it.sumBy { it.size } } == 0)
+        dynamicPath.addAll(dynamicPathStart(secondList))
+        dynamicPath.forEach {
+            println("${it.from} -> ${it.to}")
+        }
     }
 
     fun makeMove() {
@@ -73,7 +84,7 @@ class Intellect(val state: State, val protocol: Protocol) {
                 for (i in 0..state.mines.size) {
                     val mine = (currentLambda + i) % state.mines.size
                     if (state.firstToClaim[mine].isEmpty()) continue
-                    if (lambdaClosest[mine] >= 3) {
+                    if (lambdaClosest[mine] >= 1) {
                         state.firstToClaim[mine].clear()
                         continue
                     }
@@ -226,4 +237,33 @@ class Intellect(val state: State, val protocol: Protocol) {
     fun necessaryVertexCondition(vertex: Vertex<Int>, forbidOurs: Boolean = true): Double =
             if (vertex.links.count { state.rivers[it.river] == RiverState.Our } != 0 && forbidOurs) 0.0
             else if (vertex.links.count { state.rivers[it.river] == RiverState.Neutral } > 0) 1.0 else 0.0
+
+    fun dynamicPathStart(items: List<Path>): List<Path> {
+        var path = listOf<Path>()
+        var cost = Int.MAX_VALUE
+        for (item in items) {
+            val newPath = dynamicPath(path + item, items.filter { it.to != item.to && it.to != item.from})
+            if (pathCost(newPath) < cost) {
+                path = newPath
+                cost = pathCost(newPath)
+            }
+        }
+        return path
+    }
+    fun dynamicPath(path: List<Path>, items: List<Path>): List<Path> {
+        val available = items.filter { it.from == path.last().to }
+        var bestPath = if (available.isNotEmpty()) path + available[0] else path
+        var bestCost = Int.MAX_VALUE
+        for (item in available) {
+            val newPath = dynamicPath(path + item, items.filter { it.to != item.to })
+
+            if (pathCost(newPath) < bestCost) {
+                bestPath = newPath
+                bestCost = pathCost(newPath)
+            }
+
+        }
+        return bestPath
+    }
+    fun pathCost(path: List<Path>): Int = path.sumBy { it.path.size }
 }
