@@ -3,6 +3,7 @@ package ru.spbstu.competition.game
 import ru.spbstu.competition.protocol.Protocol
 import Graph.*
 import com.sun.jmx.remote.internal.ArrayQueue
+import ru.spbstu.competition.protocol.data.River
 import java.util.*
 
 class Intellect(val state: State, val protocol: Protocol) {
@@ -15,14 +16,15 @@ class Intellect(val state: State, val protocol: Protocol) {
     var pathNeedsRecount = false
     val states = Array(4, { _ -> false })
 
-    val dynamicPath = mutableListOf<Path>()
-
     var fullDisconnectedGraph = false
 
     var lastStepLambda: Vertex<Int>? = null
     var lastStepLambdaIndex: Int = 0
     var lastStepCurrent: Vertex<Int>? = null
     var lastStepPath: MutableList<Vertex<Int>> = mutableListOf()
+
+    var riverCount = 0
+    var siteCount = 0
 
     fun Graph<Int>.waveSearch(from: Vertex<Int>): Map<Vertex<Int>, Int> {
         val value = mutableMapOf<Vertex<Int>, Int>()
@@ -46,6 +48,8 @@ class Intellect(val state: State, val protocol: Protocol) {
     }
 
     fun init() {
+        riverCount = state.rivers.size
+        siteCount = graph.vertexes.size
         for (i in 0..state.mines.size - 2)
             for (j in i..state.mines.size - 1) {
                 pathList.add(Path(state.matrix[i][j], graph, state.mines[i], state.mines[j]))
@@ -55,12 +59,11 @@ class Intellect(val state: State, val protocol: Protocol) {
             for (j in 0..state.mines.size - 1) {
                 secondList.add(Path(state.matrix[i][j], graph, state.mines[i], state.mines[j]))
             }
-        lambdaClosest = Array(state.mines.size, {_ -> 0})
-        pathList.sortByDescending { it.filterNeutral().size }
+        lambdaClosest = Array(state.mines.size, { _ -> 0 })
+        pathList.sortBy { it.filterNeutral().size }
         state.mines.forEach { pathDistance.add(Pair(it, graph.waveSearch(graph[it]))) }
         pathDistance.sortByDescending { it.second.values.max() }
         fullDisconnectedGraph = (state.matrix.sumBy { it.sumBy { it.size } } == 0)
-        dynamicPath.addAll(dynamicPathStart(secondList).takeLast(state.mines.size - 1))
     }
 
     fun makeMove() {
@@ -69,7 +72,6 @@ class Intellect(val state: State, val protocol: Protocol) {
             pathNeedsRecount = false
         }
 
-        //Часть только для связных Графов (отсылка к одному из разработчиков)
         if (!fullDisconnectedGraph) {
             if (!states[0]) {
                 states[0] = true
@@ -97,14 +99,16 @@ class Intellect(val state: State, val protocol: Protocol) {
                 }
                 state.firstToClaim.clear()
             }
-
             if (!states[1]) {
                 states[1] = true
                 println("State 2 started")
             }
-
-            //Двунаправленный захват переходов от каждой до каждой лямбы
             if (pathList.isNotEmpty()) {
+                val trait = checkTrait(10)
+                if (trait != null) {
+                    println("Traited!")
+                    return protocol.claimMove(trait.source, trait.target)
+                }
                 pathList.forEach {
                     if (it.path.isNotEmpty() && !it.complete && !it.unreachable) {
                         if (!it.isClear())
@@ -128,10 +132,7 @@ class Intellect(val state: State, val protocol: Protocol) {
                 }
                 pathListRecount()
             }
-
-
         }
-
         if (!states[2]) {
             states[2] = true
             println("State 3 started")
@@ -139,6 +140,11 @@ class Intellect(val state: State, val protocol: Protocol) {
 
         //Отходной вариант - идем от лямбы к самой удаленной точки
         if (lastStepLambda == null) {
+            val trait = checkTrait(20)
+            if (trait != null) {
+                println("Traited!")
+                return protocol.claimMove(trait.source, trait.target)
+            }
             for (i in lastStepLambdaIndex..pathDistance.size - 1) {
                 val move = findNext(i)
                 if (move != null)
@@ -147,6 +153,11 @@ class Intellect(val state: State, val protocol: Protocol) {
                 lastStepPath.clear()
             }
         } else {
+            val trait = checkTrait(10)
+            if (trait != null) {
+                println("Traited!")
+                return protocol.claimMove(trait.source, trait.target)
+            }
             for (i in lastStepLambdaIndex..pathDistance.size - 1) {
                 val move = findNext(i)
                 if (move != null)
@@ -175,7 +186,7 @@ class Intellect(val state: State, val protocol: Protocol) {
     fun pathListRecount() {
         pathList.removeIf { it.complete || it.unreachable }
         pathList.forEach { it.recount() }
-        pathList.sortByDescending { it.filterNeutral().size }
+        pathList.sortBy { it.filterNeutral().size }
     }
 
     fun findNext(i: Int): Edge<Int>? {
@@ -217,9 +228,9 @@ class Intellect(val state: State, val protocol: Protocol) {
         while (queue.isNotEmpty()) {
             val vertex1 = queue.poll()
             if (!visited.contains(vertex1)) {
-                if ((vertex1.links.filter{ state.rivers[it.river] == RiverState.Neutral }
+                if ((vertex1.links.filter { state.rivers[it.river] == RiverState.Neutral }
                         .map { moveToVertexValue(it.end) }
-                        .maxBy { it }?: 0.0) > 0) return vertex1
+                        .maxBy { it } ?: 0.0) > 0) return vertex1
                 val next = vertex1.links.filter { state.rivers[it.river] == RiverState.Our }.map { it.end }
                 queue.addAll(next)
                 visited.add(vertex1)
@@ -235,31 +246,17 @@ class Intellect(val state: State, val protocol: Protocol) {
             if (vertex.links.count { state.rivers[it.river] == RiverState.Our } != 0 && forbidOurs) 0.0
             else if (vertex.links.count { state.rivers[it.river] == RiverState.Neutral } > 0) 1.0 else 0.0
 
-    fun dynamicPathStart(items: List<Path>): List<Path> {
-        var path = listOf<Path>()
-        var cost = Int.MAX_VALUE
-        for (item in items) {
-            val newPath = dynamicPath(path + item, items.filter { it.to != item.to && it.to != item.from})
-            if (pathCost(newPath) < cost) {
-                path = newPath
-                cost = pathCost(newPath)
-            }
+    fun checkTrait(max: Int) : River? {
+        val vars = state.rivers.filter {
+            it.value == RiverState.Neutral &&
+            graph[it.key.source].links.count() == 2 && graph[it.key.source].links.count { state.rivers[it.river] == RiverState.Enemy } == 1 &&
+                    graph[it.key.target].links.count() == 2 && graph[it.key.target].links.count { state.rivers[it.river] == RiverState.Enemy } == 1
         }
-        return path
-    }
-    fun dynamicPath(path: List<Path>, items: List<Path>): List<Path> {
-        val available = items.filter { it.from == path.last().to }
-        var bestPath = if (available.isNotEmpty()) path + available[0] else path
-        var bestCost = Int.MAX_VALUE
-        for (item in available) {
-            val newPath = dynamicPath(path + item, items.filter { it.to != item.to })
-            if (pathCost(newPath) < bestCost) {
-                bestPath = newPath
-                bestCost = pathCost(newPath)
-            }
-
+        if (vars.isNotEmpty()) {
+            val chance = Random().nextInt(100)
+            if (chance <= max)
+                return vars.keys.first()
         }
-        return bestPath
+        return null
     }
-    fun pathCost(path: List<Path>): Int = path.sumBy { it.path.size }
 }
