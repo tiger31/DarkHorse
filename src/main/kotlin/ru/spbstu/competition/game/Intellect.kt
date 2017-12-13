@@ -140,7 +140,7 @@ class Intellect(val state: State, val protocol: Protocol) {
 
         //Отходной вариант - идем от лямбы к самой удаленной точки
         if (lastStepLambda == null) {
-            val trait = checkTrait(20)
+            val trait = checkTrait(25)
             if (trait != null) {
                 println("Traited!")
                 return protocol.claimMove(trait.source, trait.target)

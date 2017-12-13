@@ -13,7 +13,7 @@ object Arguments {
     var url: String = "91.151.191.57"
 
     @Option(name = "-p", usage = "Specify server port")
-    var port: Int = 50005
+    var port: Int = 50009
 
     fun use(args: Array<String>): Arguments =
             CmdLineParser(this).parseArgument(*args).let{ this }
